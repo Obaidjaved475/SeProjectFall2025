@@ -47,3 +47,43 @@ demo = gr.Interface(
 
 if __name__ == "__main__":
     demo.launch()
+
+
+
+
+
+class NutritionDatabase:
+  init(data):
+    self.data = data
+    self.synonyms = {"granny smith apple": "apple"}
+
+  resolve(label):
+    key = lowercase(label)
+    return self.synonyms.get(key, key)
+
+  lookup(label):
+    return self.data.get(self.resolve(label))
+
+
+class NutritionAggregator:
+  init(db):
+    self.db = db
+    self.macros = ["Calories", "Protein", "Carbs", "Fat"]
+
+  compute_item(label, grams = 100):
+    facts = self.db.lookup(label)
+    if facts is null:
+      return {label: label, error: "Not in database"}
+    scale = grams / 100
+    scaled = {k: round(facts[k] * scale, 2) for k in facts}
+    return {label: label, grams: grams, nutrients: scaled}
+
+  aggregate(items):  # items: [(label, grams)]
+    results = [compute_item(lbl, g) for (lbl, g) in items]
+    totals = {m: 0 for m in self.macros}
+    for r in results:
+      if "nutrients" in r:
+        for m in self.macros:
+          totals[m] += r.nutrients[m]
+    totals = {m: round(totals[m], 2) for m in totals}
+    return {items: results, totals: totals}
