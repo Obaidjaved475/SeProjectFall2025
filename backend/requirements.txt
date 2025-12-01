@@ -1,4 +1,7 @@
-gradio
-tensorflow
-pillow
-numpy
+fastapi
+uvicorn
+torch
+torchvision
+Pillow
+requests
+python-multipart

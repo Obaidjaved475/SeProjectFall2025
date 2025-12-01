@@ -1,89 +1,84 @@
-import gradio as gr
-import tensorflow as tf
-import numpy as np
-from tensorflow.keras.applications.mobilenet_v2 import MobileNetV2, preprocess_input, decode_predictions
-from tensorflow.keras.preprocessing import image
+from fastapi import FastAPI, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+import shutil
+import requests
+from model import predict
+import os
 
-# Load pre-trained MobileNetV2 model
-model = MobileNetV2(weights="imagenet")
+app = FastAPI()
 
-# Dummy nutrition database (per 100g)
-nutrition_data = {
-    "apple": {"Calories": 52, "Protein": 0.3, "Carbs": 14, "Fat": 0.2},
-    "banana": {"Calories": 89, "Protein": 1.1, "Carbs": 23, "Fat": 0.3},
-    "pizza": {"Calories": 266, "Protein": 11, "Carbs": 33, "Fat": 10},
-    "salad": {"Calories": 33, "Protein": 2, "Carbs": 6, "Fat": 0.4},
-}
-
-def analyze_food(img):
-    # Preprocess image
-    img = img.resize((224, 224))
-    x = image.img_to_array(img)
-    x = np.expand_dims(x, axis=0)
-    x = preprocess_input(x)
-
-    # Model prediction
-    preds = model.predict(x)
-    decoded = decode_predictions(preds, top=1)[0][0]  # (class, description, prob)
-    food_item = decoded[1].lower()
-
-    # Nutrition mapping
-    if food_item in nutrition_data:
-        return {
-            "Food Item": food_item,
-            "Nutrition per 100g": nutrition_data[food_item]
-        }
-    else:
-        return {"Food Item": food_item, "Nutrition per 100g": "Not available in DB"}
-
-# Gradio interface
-demo = gr.Interface(
-    fn=analyze_food,
-    inputs=gr.Image(type="pil", label="Upload a food image"),
-    outputs="json",
-    title="🍎 Food Nutrition Analyzer",
-    description="Upload an image of food to analyze and view its nutritional information per 100g."
+# Allow frontend to communicate
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-if __name__ == "__main__":
-    demo.launch()
+# USDA API configuration
+# Note: In production, it is safer to store API keys in environment variables.
+USDA_API_KEY = "C0RpO2x7kUsAGNAwP7FK8BgJucMa9IdFg3OwDUjC"
+USDA_SEARCH_URL = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
+def get_nutrition(food_name: str):
+    """
+    Calls USDA FoodData Central API and returns basic nutrition info.
+    """
+    params = {
+        "api_key": USDA_API_KEY,
+        "query": food_name,
+        "pageSize": 1,
+    }
+    response = requests.get(USDA_SEARCH_URL, params=params)
+    
+    if response.status_code != 200:
+        return {"error": "Failed to fetch nutrition info."}
+    
+    data = response.json()
+    if "foods" not in data or len(data["foods"]) == 0:
+        return {"error": "No nutrition info found."}
 
+    # Pick first result
+    food = data["foods"][0]
+    nutrients = {}
+    for n in food.get("foodNutrients", []):
+        name = n.get("nutrientName")
+        value = n.get("value")
+        unit = n.get("unitName")
+        if name and value is not None:
+            nutrients[name] = f"{value} {unit}"
 
+    return nutrients
 
+@app.post("/predict/")
+async def predict_food(file: UploadFile = File(...)):
+    # Save uploaded file temporarily
+    temp_file_path = f"temp_{file.filename}"
+    with open(temp_file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
 
-class NutritionDatabase:
-  init(data):
-    self.data = data
-    self.synonyms = {"granny smith apple": "apple"}
+    # Predict
+    result = predict(temp_file_path)
 
-  resolve(label):
-    key = lowercase(label)
-    return self.synonyms.get(key, key)
+    # Remove temp file
+    try:
+        os.remove(temp_file_path)
+    except:
+        pass
 
-  lookup(label):
-    return self.data.get(self.resolve(label))
+    # --- FIX APPLIED HERE ---
+    # Replace underscores with spaces so USDA API can find the food
+    # e.g., "french_fries" becomes "french fries"
+    food_name_for_api = result["label"].replace("_", " ")
+    nutrition = get_nutrition(food_name_for_api)
 
+    return {
+        "label": result["label"],
+        "confidence": result["confidence"],
+        "nutrition": nutrition
+    }
 
-class NutritionAggregator:
-  init(db):
-    self.db = db
-    self.macros = ["Calories", "Protein", "Carbs", "Fat"]
-
-  compute_item(label, grams = 100):
-    facts = self.db.lookup(label)
-    if facts is null:
-      return {label: label, error: "Not in database"}
-    scale = grams / 100
-    scaled = {k: round(facts[k] * scale, 2) for k in facts}
-    return {label: label, grams: grams, nutrients: scaled}
-
-  aggregate(items):  # items: [(label, grams)]
-    results = [compute_item(lbl, g) for (lbl, g) in items]
-    totals = {m: 0 for m in self.macros}
-    for r in results:
-      if "nutrients" in r:
-        for m in self.macros:
-          totals[m] += r.nutrients[m]
-    totals = {m: round(totals[m], 2) for m in totals}
-    return {items: results, totals: totals}
+@app.get("/")
+def root():
+    return {"message": "Food classifier + nutrition API running."}
