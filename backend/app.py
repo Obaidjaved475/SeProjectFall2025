@@ -17,7 +17,11 @@ app.add_middleware(
 )
 
 # USDA API configuration
-# Note: In production, it is safer to store API keys in environment variables.
+# Read the API key from environment variables (fallback to the existing key).
+# In production, set the `USDA_API_KEY` environment variable instead of relying
+# on the fallback value.
+import requests
+
 USDA_API_KEY = "C0RpO2x7kUsAGNAwP7FK8BgJucMa9IdFg3OwDUjC"
 USDA_SEARCH_URL = "https://api.nal.usda.gov/fdc/v1/foods/search"
 
@@ -25,31 +29,50 @@ def get_nutrition(food_name: str):
     """
     Calls USDA FoodData Central API and returns basic nutrition info.
     """
+
+    # Clean up model output
+    clean_name = food_name.replace("_", " ").lower().strip()
+
     params = {
         "api_key": USDA_API_KEY,
-        "query": food_name,
+        "query": clean_name,
         "pageSize": 1,
     }
-    response = requests.get(USDA_SEARCH_URL, params=params)
-    
-    if response.status_code != 200:
-        return {"error": "Failed to fetch nutrition info."}
-    
-    data = response.json()
-    if "foods" not in data or len(data["foods"]) == 0:
-        return {"error": "No nutrition info found."}
 
-    # Pick first result
+    response = requests.get(USDA_SEARCH_URL, params=params)
+
+    # If USDA rejects the request, show real message
+    if response.status_code != 200:
+        return {"error": f"USDA error: {response.text}"}
+
+    data = response.json()
+
+    if "foods" not in data or len(data["foods"]) == 0:
+        # Try fallback query with only the first word (e.g., strawberry)
+        fallback = clean_name.split(" ")[0]
+        params["query"] = fallback
+        response = requests.get(USDA_SEARCH_URL, params=params)
+        data = response.json()
+
+        if "foods" not in data or len(data["foods"]) == 0:
+            return {"error": "No nutrition info found."}
+
     food = data["foods"][0]
+
+    # Handle both types of nutrient fields
+    raw_nutrients = food.get("foodNutrients") or food.get("nutrients") or []
+
     nutrients = {}
-    for n in food.get("foodNutrients", []):
-        name = n.get("nutrientName")
+    for n in raw_nutrients:
+        name = n.get("nutrientName") or n.get("name")
         value = n.get("value")
-        unit = n.get("unitName")
+        unit = n.get("unitName") or n.get("unit")
+
         if name and value is not None:
             nutrients[name] = f"{value} {unit}"
 
     return nutrients
+
 
 @app.post("/predict/")
 async def predict_food(file: UploadFile = File(...)):
