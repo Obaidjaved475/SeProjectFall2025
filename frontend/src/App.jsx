@@ -10,8 +10,6 @@ import AppleIcon from "./SVG/AppleIcon";
 import NutritionIcon from "./SVG/NutritionIcon";
 import ScaleIcon from "./SVG/ScaleIcon";
 
-
-
 function App() {
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -64,10 +62,8 @@ function App() {
       const formData = new FormData();
       formData.append("file", image);
 
-      const res = await axios.post("http://localhost:8000/predict/", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      const res = await axios.post("/predict/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
 
       setResult(res.data);
@@ -89,220 +85,265 @@ function App() {
   };
 
   return (
-    <div className="container">
-      {/* Header */}
-      <header className="app-header">
-        <div className="header-content">
-          <ChefHat />
-          <h1 className="app-title">Food Nutrition Analyzer</h1>
-        </div>
-        <p className="app-subtitle">
-          Upload a photo of your food and discover its nutritional content instantly
-        </p>
-      </header>
+    <div className="app-wrapper">
+      {/* Animated background */}
+      <div className="animated-bg">
+        <div className="bg-circle bg-circle-1"></div>
+        <div className="bg-circle bg-circle-2"></div>
+        <div className="bg-circle bg-circle-3"></div>
+      </div>
 
-      <div className="main-grid">
-        {/* Left Column - Upload & Preview */}
-        <div>
-          {/* Upload Area */}
-          <div 
-            className={`upload-section ${dragOver ? 'drag-over' : ''}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-          >
-            <div className="upload-content">
-              <div className="upload-icon-wrapper">
-                <UploadIcon />
-              </div>
-              <h2 className="upload-title">Upload Food Image</h2>
-              <p className="upload-subtitle">Drag & drop or click to browse</p>
-              
-              <label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  className="file-input"
-                />
-                <div className="upload-button">
-                  <UploadIcon />
-                  Choose Image
-                </div>
-              </label>
-              
-              <p className="file-hint">Supports JPG, PNG, WebP up to 10MB</p>
+      <div className="container">
+        {/* Header */}
+        <header className="app-header">
+          <div className="header-content">
+            <div className="header-icon-wrapper">
+              <ChefHat />
+            </div>
+            <div className="header-text">
+              <h1 className="app-title">Food Nutrition Analyzer</h1>
+              <p className="app-subtitle">
+                Powered by AI • Instant nutritional insights
+              </p>
             </div>
           </div>
+        </header>
 
-          {/* Preview Area */}
-          {preview && (
-            <div className="preview-section">
-              <h3 className="preview-header">
-                <CheckIcon />
-                Image Preview
-              </h3>
-              <div className="preview-image-container">
-                <img 
-                  src={preview} 
-                  alt="Food preview" 
-                  className="preview-image"
-                />
-                <div className="preview-overlay">
-                  <p>Ready to analyze</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column - Results */}
-        <div>
-          {/* Analyze Button */}
-          <div className="analyze-section">
-            <button 
-              onClick={analyze}
-              disabled={loading || !image}
-              className="analyze-button"
+        <div className="main-grid">
+          {/* Left Column - Upload & Preview */}
+          <div className="left-column">
+            {/* Upload Area */}
+            <div 
+              className={`upload-section ${dragOver ? 'drag-over' : ''} ${preview ? 'has-preview' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
             >
-              {loading ? (
-                <>
-                  <div className="loading-spinner"></div>
-                  Analyzing Your Food...
-                </>
+              {!preview ? (
+                <div className="upload-content">
+                  <div className="upload-icon-wrapper">
+                    <UploadIcon />
+                  </div>
+                  <h2 className="upload-title">Drop your food image here</h2>
+                  <p className="upload-subtitle">or click to browse from your device</p>
+                  
+                  <label className="upload-button-wrapper">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="file-input"
+                    />
+                    <div className="upload-button">
+                      <UploadIcon />
+                      Select Image
+                    </div>
+                  </label>
+                  
+                  <p className="file-hint">Supports JPG, PNG, WebP • Max 10MB</p>
+                </div>
               ) : (
-                <>
-                  <FlameIcon />
-                  Analyze Nutrition
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className="error-section">
-              <div className="error-content">
-                <AlertIcon />
-                <div>
-                  <h3 className="error-title">Error</h3>
-                  <p className="error-message">{error}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Results Display */}
-          {result ? (
-            <div className="results-section">
-              {/* Header */}
-              <div className="results-header">
-                <div className="results-title-row">
-                  <div>
-                    <h2 className="results-main-title">Analysis Complete</h2>
-                    <p className="results-subtitle">Food successfully identified</p>
-                  </div>
-                  <div className="confidence-badge">
-                    <div className="confidence-value">
-                      {(result.confidence * 100).toFixed(1)}%
+                <div className="preview-section">
+                  <div className="preview-header">
+                    <div className="preview-badge">
+                      <CheckIcon />
+                      <span>Image Ready</span>
                     </div>
-                    <div className="confidence-label">Confidence</div>
+                    <button 
+                      className="change-image-btn"
+                      onClick={() => {
+                        setImage(null);
+                        setPreview(null);
+                        setResult(null);
+                        setError(null);
+                      }}
+                    >
+                      Change Image
+                    </button>
                   </div>
-                </div>
-              </div>
-
-              {/* Food Info */}
-              <div className="food-info">
-                <div className="food-info-content">
-                  <div className="food-icon-wrapper">
-                    <AppleIcon />
-                  </div>
-                  <div className="food-details">
-                    <h3>{result.label}</h3>
-                    <p>Food detected</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Nutrition Info */}
-              {result.nutrition && !result.nutrition.error ? (
-                <div className="nutrition-section">
-                  <div className="nutrition-header">
-                    <h3 className="nutrition-title">Nutritional Values</h3>
-                    <span className="nutrition-badge">Per 100g serving</span>
-                  </div>
-                  
-                  <div className="nutrition-grid">
-                    {Object.entries(result.nutrition).map(([key, value]) => {
-                      const iconType = getNutritionIcon(key);
-                      return (
-                        <div key={key} className="nutrition-card">
-                          <div className="nutrition-card-header">
-                            {iconType && <NutritionIcon type={iconType} />}
-                            <div className="nutrition-label">
-                              {key.replace(/_/g, ' ')}
-                            </div>
-                          </div>
-                          <div className="nutrition-value">
-                            {typeof value === 'number' ? value.toFixed(1) : value}
-                          </div>
-                          <div className="nutrition-unit">
-                            {key.toLowerCase().includes('calori') ? 'kcal' : 'grams'}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  
-                  {/* Note about 100g */}
-                  <div className="nutrition-note">
-                    <div className="note-content">
-                      <ScaleIcon />
-                      <p className="note-text">
-                        <strong>Note:</strong> All nutritional values shown are for a 100-gram serving of the detected food. 
-                        Adjust based on your actual portion size.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : result.nutrition && result.nutrition.error ? (
-                <div className="nutrition-error">
-                  <div className="nutrition-error-content">
-                    <div className="error-content-wrapper">
-                      <AlertIcon />
-                      <div>
-                        <h4 className="nutrition-error-title">Nutrition Data Unavailable</h4>
-                        <p className="nutrition-error-message">{result.nutrition.error}</p>
+                  <div className="preview-image-container">
+                    <img 
+                      src={preview} 
+                      alt="Food preview" 
+                      className="preview-image"
+                    />
+                    <div className="preview-overlay">
+                      <div className="preview-overlay-content">
+                        <CheckIcon />
+                        <span>Ready to analyze</span>
                       </div>
                     </div>
                   </div>
                 </div>
-              ) : null}
+              )}
             </div>
-          ) : !error ? (
-            /* Empty State */
-            <div className="empty-state">
-              <div className="empty-icon-wrapper">
-                <FlameIcon />
-              </div>
-              <h3 className="empty-title">Ready to Analyze</h3>
-              <p className="empty-text">
-                Upload a food image and click "Analyze Nutrition" to see detailed nutritional information
-              </p>
-            </div>
-          ) : null}
-        </div>
-      </div>
 
-      {/* Footer */}
-      <footer className="app-footer">
-        <p className="footer-text">
-          Food Nutrition Analyzer • Uses AI to identify food and provide nutritional data
-        </p>
-        <p className="footer-note">
-          Nutritional values are based on standard 100g portions
-        </p>
-      </footer>
+            {/* Analyze Button - Show below upload when preview exists */}
+            {preview && (
+              <button 
+                onClick={analyze}
+                disabled={loading}
+                className={`analyze-button ${loading ? 'loading' : ''}`}
+              >
+                {loading ? (
+                  <>
+                    <div className="loading-spinner"></div>
+                    <span>Analyzing...</span>
+                  </>
+                ) : (
+                  <>
+                    <FlameIcon />
+                    <span>Analyze Nutrition</span>
+                  </>
+                )}
+              </button>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <div className="error-section">
+                <div className="error-content">
+                  <AlertIcon />
+                  <div>
+                    <h3 className="error-title">Something went wrong</h3>
+                    <p className="error-message">{error}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column - Results */}
+          <div className="right-column">
+            {result ? (
+              <div className="results-section">
+                {/* Header */}
+                <div className="results-header">
+                  <div className="results-title-row">
+                    <div>
+                      <h2 className="results-main-title">Analysis Complete</h2>
+                      <p className="results-subtitle">AI-powered food identification</p>
+                    </div>
+                    <div className="confidence-badge">
+                      <div className="confidence-circle">
+                        <svg className="confidence-ring" viewBox="0 0 100 100">
+                          <circle cx="50" cy="50" r="45" className="confidence-bg"/>
+                          <circle 
+                            cx="50" 
+                            cy="50" 
+                            r="45" 
+                            className="confidence-fill"
+                            style={{
+                              strokeDasharray: `${result.confidence * 283} 283`
+                            }}
+                          />
+                        </svg>
+                        <div className="confidence-value">
+                          {(result.confidence * 100).toFixed(0)}%
+                        </div>
+                      </div>
+                      <div className="confidence-label">Confidence</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Food Info */}
+                <div className="food-info">
+                  <div className="food-info-content">
+                    <div className="food-icon-wrapper">
+                      <AppleIcon />
+                    </div>
+                    <div className="food-details">
+                      <h3>{result.label.replace(/_/g, ' ')}</h3>
+                      <p>Detected food item</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nutrition Info */}
+                {result.nutrition && !result.nutrition.error ? (
+                  <div className="nutrition-section">
+                    <div className="nutrition-header">
+                      <h3 className="nutrition-title">Nutritional Information</h3>
+                      <span className="nutrition-badge">Per 100g</span>
+                    </div>
+                    
+                    <div className="nutrition-grid">
+                      {Object.entries(result.nutrition).slice(0, 12).map(([key, value]) => {
+                        const iconType = getNutritionIcon(key);
+                        return (
+                          <div key={key} className="nutrition-card">
+                            <div className="nutrition-card-header">
+                              {iconType && <NutritionIcon type={iconType} />}
+                              <div className="nutrition-label">
+                                {key.replace(/_/g, ' ')}
+                              </div>
+                            </div>
+                            <div className="nutrition-value">
+                              {typeof value === 'string' ? value : `${value.toFixed(1)}`}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    <div className="nutrition-note">
+                      <div className="note-content">
+                        <ScaleIcon />
+                        <p className="note-text">
+                          Values shown are approximate and based on standard 100g portions. 
+                          Actual nutrition may vary based on preparation and serving size.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : result.nutrition && result.nutrition.error ? (
+                  <div className="nutrition-error">
+                    <AlertIcon />
+                    <div>
+                      <h4 className="nutrition-error-title">Nutrition Data Unavailable</h4>
+                      <p className="nutrition-error-message">{result.nutrition.error}</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon-wrapper">
+                  <FlameIcon />
+                </div>
+                <h3 className="empty-title">Ready to Analyze</h3>
+                <p className="empty-text">
+                  Upload a food image to discover its nutritional content instantly
+                </p>
+                <div className="empty-features">
+                  <div className="feature-item">
+                    <CheckIcon />
+                    <span>AI-Powered Recognition</span>
+                  </div>
+                  <div className="feature-item">
+                    <CheckIcon />
+                    <span>Instant Results</span>
+                  </div>
+                  <div className="feature-item">
+                    <CheckIcon />
+                    <span>Detailed Nutrition Data</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="app-footer">
+          <div className="footer-content">
+            <p className="footer-text">
+              © 2024 Food Nutrition Analyzer • Powered by AI & USDA Database
+            </p>
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
