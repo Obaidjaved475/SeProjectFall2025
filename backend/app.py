@@ -4,6 +4,8 @@ import shutil
 import requests
 from model import predict
 import os
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 app = FastAPI()
 
@@ -102,6 +104,5 @@ async def predict_food(file: UploadFile = File(...)):
         "nutrition": nutrition
     }
 
-@app.get("/")
-def root():
-    return {"message": "Food classifier + nutrition API running."}
+# Serve frontend build directly from root so Vite asset paths resolve
+app.mount("/", StaticFiles(directory="static", html=True), name="frontend")

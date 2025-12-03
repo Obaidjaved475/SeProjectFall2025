@@ -1,21 +1,11 @@
 # version: "3.8"
 services:
-  backend:
+  app:
     build:
-      context: ./backend
-    container_name: se_backend
+      context: .
+    container_name: se_app
     restart: unless-stopped
     ports:
       - "8000:8000"
     env_file:
       - ./backend/.env
-
-  frontend:
-    build:
-      context: ./frontend
-    container_name: se_frontend
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    depends_on:
-      - backend
